@@ -52,20 +52,61 @@ fig, ax = plt.subplots(figsize=(8, 6))
 sns.heatmap(risk_data, xticklabels=risk_labels, yticklabels=risk_labels, cmap="coolwarm", annot=True)
 st.pyplot(fig)
 
-# Diagrama de IA simplificado
+# Diagrama de IA corregido con altair
 st.subheader("🧠 Neural Network (Decision Core)")
-nodes = ["pH", "Temp", "Location", "Layer 1", "Layer 2", "Release", "Move"]
-edges = [("pH", "Layer 1"), ("Temp", "Layer 1"), ("Location", "Layer 1"),
-         ("Layer 1", "Layer 2"), ("Layer 2", "Release"), ("Layer 2", "Move")]
-edge_df = pd.DataFrame(edges, columns=["source", "target"])
-node_df = pd.DataFrame({"node": nodes})
-chart = alt.Chart(edge_df).mark_line().encode(
-    x='source:N', x2='target:N',
-    y=alt.value(150), strokeWidth=alt.value(3)
-) + alt.Chart(node_df).mark_point(filled=True, size=200, color='cyan').encode(
-    x='node:N', y=alt.value(150)
+
+nodes = [
+    {"name": "pH", "layer": 0},
+    {"name": "Temp", "layer": 0},
+    {"name": "Location", "layer": 0},
+    {"name": "Layer 1", "layer": 1},
+    {"name": "Layer 2", "layer": 2},
+    {"name": "Release", "layer": 3},
+    {"name": "Move", "layer": 3}
+]
+
+edges = [
+    {"source": "pH", "target": "Layer 1"},
+    {"source": "Temp", "target": "Layer 1"},
+    {"source": "Location", "target": "Layer 1"},
+    {"source": "Layer 1", "target": "Layer 2"},
+    {"source": "Layer 2", "target": "Release"},
+    {"source": "Layer 2", "target": "Move"}
+]
+
+nodes_df = pd.DataFrame(nodes)
+edges_df = pd.DataFrame(edges).merge(
+    nodes_df[['name', 'layer']], left_on='source', right_on='name'
+).rename(columns={'layer': 'source_layer'}).drop('name', axis=1).merge(
+    nodes_df[['name', 'layer']], left_on='target', right_on='name'
+).rename(columns={'layer': 'target_layer'}).drop('name', axis=1)
+
+# Asignar coordenadas
+nodes_df['x'] = nodes_df['layer'] * 200
+nodes_df['y'] = [i * 100 for i in range(len(nodes_df))]
+
+# Dibujo
+points = alt.Chart(nodes_df).mark_circle(size=300).encode(
+    x='x:Q',
+    y='y:Q',
+    tooltip='name:N',
+    color=alt.value('cyan')
 )
-st.altair_chart(chart, use_container_width=True)
+
+text = alt.Chart(nodes_df).mark_text(dy=-20, fontSize=12, color='white').encode(
+    x='x:Q',
+    y='y:Q',
+    text='name:N'
+)
+
+lines = alt.Chart(edges_df).mark_rule(strokeWidth=2).encode(
+    x='source_layer:Q',
+    x2='target_layer:Q',
+    y='source:N',
+    y2='target:N'
+)
+
+st.altair_chart(points + text, use_container_width=True)
 
 # Gráfico de liberación BDNF
 st.subheader("💊 BDNF Drug Release Over Time")
